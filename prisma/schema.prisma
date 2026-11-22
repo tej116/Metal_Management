@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  METAL_CREDIT
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum MetalSplitStatus {
+  ACTIVE
+  REVERSED
+}
+
+model Customer {
+  id             String             @id @default(cuid())
+  name           String
+  phone          String?
+  address        String?
+  notes          String?
+  currentBalance Decimal            @default(0)
+  isArchived     Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  metalSplits    MetalSplit[]
+  transactions   MoneyTransaction[]
+
+  @@index([name])
+  @@index([isArchived])
+}
+
+model MetalSplit {
+  id                    String             @id @default(cuid())
+  receiptNumber         String             @unique
+  customerId            String
+  customer              Customer           @relation(fields: [customerId], references: [id])
+  itemsetName           String
+  grossProductWeight    Decimal?
+  goldWeight            Decimal            @default(0)
+  goldPurity            Decimal            @default(0)
+  goldFineWeight        Decimal            @default(0)
+  goldRatePerGram       Decimal            @default(0)
+  goldAmount            Decimal            @default(0)
+  goldAmountOverridden  Boolean            @default(false)
+  silverWeight          Decimal            @default(0)
+  silverPurity          Decimal            @default(0)
+  silverFineWeight      Decimal            @default(0)
+  silverRatePerGram     Decimal            @default(0)
+  silverAmount          Decimal            @default(0)
+  silverAmountOverridden Boolean           @default(false)
+  totalProducedAmount   Decimal            @default(0)
+  amountGivenToCustomer Decimal            @default(0)
+  remainingBalanceAdded Decimal            @default(0)
+  status                MetalSplitStatus   @default(ACTIVE)
+  reversalReason        String?
+  reversedAt            DateTime?
+  notes                 String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  transactions          MoneyTransaction[]
+
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MoneyTransaction {
+  id                    String          @id @default(cuid())
+  voucherNumber         String          @unique
+  customerId            String
+  customer              Customer        @relation(fields: [customerId], references: [id])
+  metalSplitId          String?
+  metalSplit            MetalSplit?     @relation(fields: [metalSplitId], references: [id])
+  type                  TransactionType
+  amount                Decimal
+  balanceBefore         Decimal
+  balanceAfter          Decimal
+  paymentMode           PaymentMode     @default(CASH)
+  description           String?
+  isReversal            Boolean         @default(false)
+  reversesTransactionId String?
+  createdAt             DateTime        @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([type, createdAt])
+  @@index([paymentMode])
+  @@index([metalSplitId])
+}
+
+model MetalRate {
+  id                Int      @id @default(1)
+  goldRatePerGram   Decimal?
+  silverRatePerGram Decimal?
+  currencySymbol    String   @default("₹")
+  locale            String   @default("en-IN")
+  businessName      String   @default("AurumLedger")
+  businessAddress   String   @default("")
+  businessPhone     String   @default("")
+  updatedAt         DateTime @updatedAt
+}
+
+model SequenceCounter {
+  key       String @id
+  nextValue Int    @default(1)
+}
